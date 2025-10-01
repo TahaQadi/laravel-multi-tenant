@@ -7,6 +7,7 @@ use App\Http\Controllers\Tenant\HomepageController;
 use App\Http\Controllers\Tenant\OrderController;
 use App\Http\Controllers\Tenant\ProductController;
 use App\Http\Controllers\Tenant\Manage\TenantAssetController;
+use App\Http\Controllers\Tenant\StandingOrderController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -76,5 +77,10 @@ Route::middleware([
             ]);
         })->name('dashboard');
         require __DIR__.'/tenant/admin.php';
+
+        // Standing orders
+        Route::get('/standing-orders', [StandingOrderController::class, 'index'])->name('standing-orders.index');
+        Route::post('/standing-orders', [StandingOrderController::class, 'store'])->name('standing-orders.store');
+        Route::post('/standing-orders/{standingOrder}/run', [StandingOrderController::class, 'run'])->name('standing-orders.run');
     });
 });
