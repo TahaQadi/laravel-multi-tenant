@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Contract;
+use App\Models\ContractItem;
+use App\Models\Product;
+use App\Models\User;
+use Carbon\Carbon;
+
+class PricingResolver
+{
+    /**
+     * Resolve price and constraints for a product for a given user (client).
+     */
+    public function resolveForUserAndProduct(?User $user, Product $product): array
+    {
+        $today = Carbon::today();
+
+        $contractQuery = Contract::query()
+            ->where('status', 'active')
+            ->whereDate('start_at', '<=', $today)
+            ->where(function ($q) use ($today) {
+                $q->whereNull('end_at')->orWhereDate('end_at', '>=', $today);
+            });
+
+        if ($user) {
+            // Prefer contracts specifically for this user
+            $contractQuery->where(function ($q) use ($user) {
+                $q->whereNull('user_id')->orWhere('user_id', $user->id);
+            });
+        }
+
+        $contract = $contractQuery
+            ->with(['items' => function ($q) use ($product) {
+                $q->where('product_id', $product->id);
+            }])
+            ->orderByRaw('CASE WHEN user_id IS NULL THEN 1 ELSE 0 END') // prioritize user-specific
+            ->latest('start_at')
+            ->first();
+
+        $item = $contract?->items?->first();
+
+        return [
+            'price' => $item?->price ?? $product->price,
+            'min_qty' => $item?->min_qty ?? 1,
+            'pack_multiple' => $item?->pack_multiple ?? 1,
+            'contract_id' => $contract?->id,
+        ];
+    }
+}
+

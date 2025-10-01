@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Services\PricingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -71,10 +72,27 @@ class OrderController extends Controller
             return redirect()->route('cart.index')->with('error', 'Your cart is empty. Add items before checkout.');
         }
 
-        // Verify product inventory
+        // Verify constraints and inventory
+        $pricingResolver = new PricingResolver();
         foreach ($cart->items as $item) {
-            if ($item->quantity > $item->product->stock) {
-                return redirect()->route('cart.index')->with('error', "Not enough stock for {$item->product->name}. Available: {$item->product->stock}");
+            $product = $item->product;
+            $resolved = $pricingResolver->resolveForUserAndProduct(Auth::user(), $product);
+
+            // Enforce min and pack multiples
+            $quantity = max($item->quantity, $resolved['min_qty']);
+            if ($resolved['pack_multiple'] > 1) {
+                $remainder = $quantity % $resolved['pack_multiple'];
+                if ($remainder !== 0) {
+                    $quantity += ($resolved['pack_multiple'] - $remainder);
+                }
+            }
+
+            if ($quantity !== $item->quantity) {
+                return redirect()->route('cart.index')->with('error', 'Cart contains items not meeting contract constraints. Please review quantities.');
+            }
+
+            if ($quantity > $product->stock) {
+                return redirect()->route('cart.index')->with('error', "Not enough stock for {$product->name}. Available: {$product->stock}");
             }
         }
 

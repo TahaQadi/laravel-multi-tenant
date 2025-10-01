@@ -197,7 +197,9 @@ function getTenantAssetUrl(path) {
                                             <h3 class="font-medium text-lg">{{ product.name }}</h3>
                                             <p class="text-sm text-gray-500">{{ product.category?.name }}</p>
                                         </div>
-                                        <span class="font-bold text-lg">${{ Number(product.price).toFixed(2) }}</span>
+                                        <span class="font-bold text-lg">
+                                            ${{ Number(product.resolved_price ?? product.price).toFixed(2) }}
+                                        </span>
                                     </div>
                                     <p class="text-gray-600 text-sm my-2 line-clamp-2">{{ product.description }}</p>
                                     <div class="flex justify-between items-center mt-4">

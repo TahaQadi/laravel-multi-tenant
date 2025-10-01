@@ -53,6 +53,17 @@ Route::middleware([
         ->where('path', '.*')
         ->name('tenant.asset');
 
+    // Templates (auth required)
+    Route::middleware('auth')->group(function () {
+        \App\Http\Controllers\Tenant\OrderTemplateController::class;
+        Route::get('/templates', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'index'])->name('templates.index');
+        Route::post('/templates', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'store'])->name('templates.store');
+        Route::get('/templates/{template}', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'show'])->name('templates.show');
+        Route::post('/templates/{template}/items', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'addItem'])->name('templates.items.add');
+        Route::delete('/templates/{template}/items/{item}', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'removeItem'])->name('templates.items.remove');
+        Route::post('/templates/{template}/apply', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'applyToCart'])->name('templates.apply');
+    });
+
     // Include tenant-specific auth routes
     require __DIR__.'/tenant/auth.php';
 

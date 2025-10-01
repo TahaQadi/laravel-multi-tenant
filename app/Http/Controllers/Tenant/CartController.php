@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Services\PricingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -45,6 +46,20 @@ class CartController extends Controller
         // Get the product
         $product = Product::findOrFail($productId);
 
+        // Enforce contract constraints
+        $resolved = (new PricingResolver())->resolveForUserAndProduct(Auth::user(), $product);
+
+        // Adjust quantity to meet min and pack multiple
+        if ($quantity < $resolved['min_qty']) {
+            $quantity = $resolved['min_qty'];
+        }
+        if ($resolved['pack_multiple'] > 1) {
+            $remainder = $quantity % $resolved['pack_multiple'];
+            if ($remainder !== 0) {
+                $quantity += ($resolved['pack_multiple'] - $remainder);
+            }
+        }
+
         // Check if the product is in stock
         if ($product->stock < $quantity) {
             return redirect()->back()->with('error', 'Not enough items in stock.');
@@ -73,7 +88,7 @@ class CartController extends Controller
                 'cart_id' => $cart->id,
                 'product_id' => $productId,
                 'quantity' => $quantity,
-                'price' => $product->price
+                'price' => $resolved['price']
             ]);
         }
 
@@ -99,14 +114,28 @@ class CartController extends Controller
         // Get the product
         $product = Product::findOrFail($cartItem->product_id);
 
+        $quantity = (int) $request->quantity;
+
+        // Enforce contract constraints
+        $resolved = (new PricingResolver())->resolveForUserAndProduct(Auth::user(), $product);
+        if ($quantity < $resolved['min_qty']) {
+            $quantity = $resolved['min_qty'];
+        }
+        if ($resolved['pack_multiple'] > 1) {
+            $remainder = $quantity % $resolved['pack_multiple'];
+            if ($remainder !== 0) {
+                $quantity += ($resolved['pack_multiple'] - $remainder);
+            }
+        }
+
         // Check if the new quantity is in stock
-        if ($product->stock < $request->quantity) {
+        if ($product->stock < $quantity) {
             return redirect()->back()->with('error', 'Not enough items in stock.');
         }
 
         // Update the cart item
         $cartItem->update([
-            'quantity' => $request->quantity
+            'quantity' => $quantity
         ]);
 
         return redirect()->back()->with('success', 'Cart updated successfully.');
