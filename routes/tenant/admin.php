@@ -5,6 +5,7 @@ use App\Http\Controllers\Tenant\Manage\CategoryController;
 use App\Http\Controllers\Tenant\Manage\CustomerController;
 use App\Http\Controllers\Tenant\Manage\OrderController;
 use App\Http\Controllers\Tenant\Manage\ContractController;
+use App\Http\Controllers\Tenant\Manage\ApprovalController;
 use App\Http\Controllers\Tenant\Manage\StoreStatsController;
 use Illuminate\Support\Facades\Route;
 
@@ -57,6 +58,12 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [ContractController::class, 'store'])->name('manage.contract.store');
             Route::get('/{contract}', [ContractController::class, 'show'])->name('manage.contract.show');
             Route::post('/{contract}/upload-items', [ContractController::class, 'uploadItems'])->name('manage.contract.upload-items');
+        });
+
+        // Approval Routes
+        Route::group(['prefix' => 'approvals'], function () {
+            Route::get('/', [ApprovalController::class, 'index'])->name('manage.approvals.index');
+            Route::post('/{approval}/decide', [ApprovalController::class, 'decide'])->name('manage.approvals.decide');
         });
     });
 });

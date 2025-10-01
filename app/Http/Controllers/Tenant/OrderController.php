@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Services\PricingResolver;
+use App\Services\ApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -157,6 +158,14 @@ class OrderController extends Controller
                 $product->save();
             }
 
+            // Evaluate approvals
+            $approvalService = new ApprovalService();
+            $approval = $approvalService->evaluate($order);
+            if ($approval) {
+                $order->status = 'pending_approval';
+                $order->save();
+            }
+
             // Clear the cart
             $cart->items()->delete();
 
@@ -165,8 +174,9 @@ class OrderController extends Controller
 
             DB::commit();
 
+            $message = $approval ? 'Your order has been submitted and is pending approval.' : 'Your order has been placed successfully!';
             return redirect()->route('orders.confirmation', $order->id)
-                ->with('success', 'Your order has been placed successfully!');
+                ->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
