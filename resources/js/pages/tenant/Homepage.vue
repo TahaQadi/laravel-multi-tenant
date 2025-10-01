@@ -203,9 +203,12 @@ function getTenantAssetUrl(path) {
                                     </div>
                                     <p class="text-gray-600 text-sm my-2 line-clamp-2">{{ product.description }}</p>
                                     <div class="flex justify-between items-center mt-4">
-                                        <span class="text-sm font-medium" :class="product.stock > 0 ? 'text-green-600' : 'text-red-600'">
-                                            {{ product.stock > 0 ? `In Stock (${product.stock})` : 'Out of Stock' }}
-                                        </span>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-medium" :class="product.stock > 0 ? 'text-green-600' : 'text-red-600'">
+                                                {{ product.stock > 0 ? `In Stock (${product.stock})` : 'Out of Stock' }}
+                                            </span>
+                                            <span v-if="product.inventory_eta" class="text-xs text-gray-500">ETA: {{ new Date(product.inventory_eta).toLocaleDateString() }}</span>
+                                        </div>
                                         <button
                                             @click="addToCart(product.id)"
                                             class="bg-blue-600 text-white rounded-md p-1.5 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"

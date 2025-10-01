@@ -213,6 +213,7 @@ function formatCurrency(value) {
                             <p class="text-3xl font-bold text-gray-900">
                                 ${{ formatCurrency(product.resolved_price ?? product.price) }}
                             </p>
+                            <p v-if="product.inventory_eta" class="text-sm text-gray-500 mt-1">ETA: {{ new Date(product.inventory_eta).toLocaleDateString() }}</p>
                         </div>
 
                         <div class="mt-4">

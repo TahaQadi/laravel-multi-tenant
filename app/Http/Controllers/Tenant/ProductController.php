@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Product;
+use App\Models\Inventory;
 use App\Services\PricingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,8 @@ class ProductController extends Controller
         $product->resolved_min_qty = $resolved['min_qty'];
         $product->resolved_pack_multiple = $resolved['pack_multiple'];
         $product->resolved_contract_id = $resolved['contract_id'];
+        $inv = Inventory::where('product_id', $product->id)->first();
+        $product->inventory_eta = $inv?->eta_at;
 
         // Get related products from the same category
         $relatedProducts = Product::where('category_id', $product->category_id)
@@ -39,6 +42,8 @@ class ProductController extends Controller
             ->map(function ($p) use ($pricingResolver) {
                 $resolved = $pricingResolver->resolveForUserAndProduct(Auth::user(), $p);
                 $p->resolved_price = $resolved['price'];
+                $inv = Inventory::where('product_id', $p->id)->first();
+                $p->inventory_eta = $inv?->eta_at;
                 return $p;
             });
 

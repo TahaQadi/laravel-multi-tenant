@@ -8,6 +8,7 @@ use App\Http\Controllers\Tenant\OrderController;
 use App\Http\Controllers\Tenant\ProductController;
 use App\Http\Controllers\Tenant\Manage\TenantAssetController;
 use App\Http\Controllers\Tenant\StandingOrderController;
+use App\Http\Controllers\Tenant\DeliveryLocationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -48,6 +49,7 @@ Route::middleware([
     Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::get('/orders/confirmation/{order}', [OrderController::class, 'confirmation'])->name('orders.confirmation');
+    Route::post('/orders/{order}/split', [OrderController::class, 'split'])->name('orders.split');
 
 
     Route::get('tenant-asset/{path}', TenantAssetController::class)
@@ -82,5 +84,10 @@ Route::middleware([
         Route::get('/standing-orders', [StandingOrderController::class, 'index'])->name('standing-orders.index');
         Route::post('/standing-orders', [StandingOrderController::class, 'store'])->name('standing-orders.store');
         Route::post('/standing-orders/{standingOrder}/run', [StandingOrderController::class, 'run'])->name('standing-orders.run');
+
+        // Delivery locations
+        Route::get('/delivery-locations', [DeliveryLocationController::class, 'index'])->name('delivery-locations.index');
+        Route::post('/delivery-locations', [DeliveryLocationController::class, 'store'])->name('delivery-locations.store');
+        Route::delete('/delivery-locations/{location}', [DeliveryLocationController::class, 'destroy'])->name('delivery-locations.destroy');
     });
 });

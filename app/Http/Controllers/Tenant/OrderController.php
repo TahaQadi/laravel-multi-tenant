@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Services\PricingResolver;
 use App\Services\ApprovalService;
+use App\Models\Inventory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,26 @@ use Inertia\Inertia;
 
 class OrderController extends Controller
 {
+    /**
+     * Split an order by delivery date or address (basic example).
+     */
+    public function split(Request $request, Order $order)
+    {
+        $request->validate([
+            'by' => 'required|in:delivery_address,delivery_date',
+        ]);
+
+        $order->load('items');
+        $groups = [];
+        foreach ($order->items as $item) {
+            $key = $request->by === 'delivery_address' ? ($item->delivery_address ?? 'unknown') : ($item->delivery_date ?? 'unknown');
+            $groups[$key] = ($groups[$key] ?? 0) + $item->subtotal;
+        }
+
+        return response()->json([
+            'groups' => $groups,
+        ]);
+    }
     /**
      * Display the checkout page
      */
@@ -27,6 +48,12 @@ class OrderController extends Controller
         // Load cart with items and product details
         $cart->load(['items.product.images']);
 
+        // Provide delivery locations if authenticated
+        $deliveryLocations = [];
+        if (Auth::check()) {
+            $deliveryLocations = \App\Models\DeliveryLocation::where('user_id', Auth::id())->get();
+        }
+
         // Check if cart is empty
         if ($cart->items->isEmpty()) {
             return redirect()->route('cart.index')->with('error', 'Your cart is empty. Add items before checkout.');
@@ -35,7 +62,8 @@ class OrderController extends Controller
         return Inertia::render('tenant/Payment', [
             'cart' => $cart,
             'cartItems' => $cart->items,
-            'user' => Auth::user()
+            'user' => Auth::user(),
+            'deliveryLocations' => $deliveryLocations,
         ]);
     }
 
@@ -62,6 +90,9 @@ class OrderController extends Controller
             'shipping_zipcode' => 'required|string|max:20',
             'payment_method' => 'required|in:Bank Transfer,paypal',
             'notes' => 'nullable|string|max:1000',
+            'items' => 'nullable|array',
+            'items.*.delivery_address' => 'nullable|string|max:255',
+            'items.*.delivery_date' => 'nullable|date',
         ]);
 
         // Get the cart
@@ -92,7 +123,13 @@ class OrderController extends Controller
                 return redirect()->route('cart.index')->with('error', 'Cart contains items not meeting contract constraints. Please review quantities.');
             }
 
-            if ($quantity > $product->stock) {
+            $inventory = Inventory::where('product_id', $product->id)->first();
+            if ($inventory) {
+                $available = max(0, $inventory->on_hand - $inventory->reserved);
+                if ($quantity > $available && !$inventory->backorderable) {
+                    return redirect()->route('cart.index')->with('error', "Not enough stock for {$product->name}.");
+                }
+            } else if ($quantity > $product->stock) {
                 return redirect()->route('cart.index')->with('error', "Not enough stock for {$product->name}. Available: {$product->stock}");
             }
         }
@@ -150,6 +187,8 @@ class OrderController extends Controller
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'subtotal' => $item->price * $item->quantity,
+                    'delivery_address' => $request->input("items.{$item->id}.delivery_address"),
+                    'delivery_date' => $request->input("items.{$item->id}.delivery_date"),
                 ]);
 
                 // Update product inventory

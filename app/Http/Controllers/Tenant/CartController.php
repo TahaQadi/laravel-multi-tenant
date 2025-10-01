@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Services\PricingResolver;
+use App\Models\Inventory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -60,9 +61,17 @@ class CartController extends Controller
             }
         }
 
-        // Check if the product is in stock
-        if ($product->stock < $quantity) {
-            return redirect()->back()->with('error', 'Not enough items in stock.');
+        // Check inventory / backorder policy
+        $inventory = Inventory::where('product_id', $product->id)->first();
+        if ($inventory) {
+            $available = max(0, $inventory->on_hand - $inventory->reserved);
+            if ($quantity > $available && !$inventory->backorderable) {
+                return redirect()->back()->with('error', 'Not enough items in stock.');
+            }
+        } else {
+            if ($product->stock < $quantity) {
+                return redirect()->back()->with('error', 'Not enough items in stock.');
+            }
         }
 
         // Check if the item already exists in the cart
@@ -74,8 +83,14 @@ class CartController extends Controller
             // Update quantity if the item already exists
             $newQuantity = $cartItem->quantity + $quantity;
 
-            // Check if the new quantity is in stock
-            if ($product->stock < $newQuantity) {
+            // Check if the new quantity is in stock or backorderable
+            $inventory = Inventory::where('product_id', $product->id)->first();
+            if ($inventory) {
+                $available = max(0, $inventory->on_hand - $inventory->reserved);
+                if ($newQuantity > $available && !$inventory->backorderable) {
+                    return redirect()->back()->with('error', 'Not enough items in stock.');
+                }
+            } else if ($product->stock < $newQuantity) {
                 return redirect()->back()->with('error', 'Not enough items in stock.');
             }
 
