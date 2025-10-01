@@ -6,7 +6,8 @@ import { CreditCard, Building, ChevronsRight, Check, ArrowLeft } from 'lucide-vu
 const props = defineProps({
     cart: Object,
     cartItems: Array,
-    user: Object
+    user: Object,
+    deliveryLocations: { type: Array, default: () => [] }
 });
 
 const countries = [
@@ -106,7 +107,17 @@ function placeOrder() {
     // Set payment method from the radio buttons
     form.value.payment_method = paymentMethod.value;
 
-    router.post(route('orders.store'), form.value, {
+    // Build per-item delivery payload
+    const itemsPayload = {};
+    for (const item of props.cartItems) {
+        const cfg = perItemDelivery[item.id] || {};
+        itemsPayload[item.id] = {
+            delivery_address: cfg.mode === 'saved' ? cfg.locationAddress : cfg.customAddress,
+            delivery_date: cfg.deliveryDate || null,
+        };
+    }
+
+    router.post(route('orders.store'), { ...form.value, items: itemsPayload }, {
         onSuccess: () => {
             // Success handling is done by redirect to order confirmation
         },
@@ -133,6 +144,28 @@ function getTenantAssetUrl(path) {
     // Fallback to direct storage path
     return `/storage/${path}`;
 }
+
+// Per-line delivery assignment state
+const perItemDelivery = ref({});
+function initPerItemDefaults() {
+    for (const item of props.cartItems || []) {
+        if (!perItemDelivery.value[item.id]) {
+            perItemDelivery.value[item.id] = {
+                mode: props.deliveryLocations.length > 0 ? 'saved' : 'custom',
+                locationId: props.deliveryLocations[0]?.id || '',
+                locationAddress: props.deliveryLocations[0]
+                    ? `${props.deliveryLocations[0].address}, ${props.deliveryLocations[0].city || ''}`.trim()
+                    : '',
+                customAddress: '',
+                deliveryDate: '',
+            };
+        }
+    }
+}
+
+initPerItemDefaults();
+
+watch(() => props.cartItems, () => initPerItemDefaults(), { deep: true });
 </script>
 
 <template>
@@ -246,6 +279,56 @@ function getTenantAssetUrl(path) {
                                             {{ country }}
                                         </option>
                                     </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Line Item Delivery Assignment -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden">
+                            <div class="p-6 border-b">
+                                <h2 class="text-lg font-medium">Delivery per Item</h2>
+                            </div>
+                            <div class="p-6 space-y-4">
+                                <div v-for="item in cartItems" :key="item.id" class="border rounded p-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <div class="font-medium">{{ item.product.name }}</div>
+                                        <div class="text-sm text-gray-500">Qty: {{ item.quantity }}</div>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                        <div>
+                                            <label class="block text-sm text-gray-700 mb-1">Address Mode</label>
+                                            <select v-model="perItemDelivery[item.id].mode" class="w-full px-3 py-2 border rounded">
+                                                <option value="saved" :disabled="deliveryLocations.length === 0">Saved Location</option>
+                                                <option value="custom">Custom Address</option>
+                                            </select>
+                                        </div>
+
+                                        <div v-if="perItemDelivery[item.id].mode === 'saved'">
+                                            <label class="block text-sm text-gray-700 mb-1">Saved Location</label>
+                                            <select
+                                                v-model="perItemDelivery[item.id].locationId"
+                                                class="w-full px-3 py-2 border rounded"
+                                                @change="() => {
+                                                    const loc = deliveryLocations.find(l => l.id == perItemDelivery[item.id].locationId);
+                                                    perItemDelivery[item.id].locationAddress = loc ? `${loc.address}, ${loc.city || ''}`.trim() : '';
+                                                }"
+                                            >
+                                                <option v-for="loc in deliveryLocations" :key="loc.id" :value="loc.id">
+                                                    {{ loc.name }} — {{ loc.address }}
+                                                </option>
+                                            </select>
+                                        </div>
+
+                                        <div v-else>
+                                            <label class="block text-sm text-gray-700 mb-1">Custom Address</label>
+                                            <input v-model="perItemDelivery[item.id].customAddress" class="w-full px-3 py-2 border rounded" placeholder="Street, City, State, Zip" />
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-sm text-gray-700 mb-1">Delivery Date</label>
+                                            <input type="date" v-model="perItemDelivery[item.id].deliveryDate" class="w-full px-3 py-2 border rounded" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
