@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Cart;
+use App\Models\Inventory;
+use App\Services\PricingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -44,6 +46,21 @@ class HomepageController extends Controller
         $products = $query->orderBy('created_at', 'desc')
             ->paginate(12)
             ->withQueryString();
+
+        // Resolve pricing for visible products
+        $pricingResolver = new PricingResolver();
+        $signedInUser = Auth::user();
+        $products->getCollection()->transform(function ($product) use ($pricingResolver, $signedInUser) {
+            $resolved = $pricingResolver->resolveForUserAndProduct($signedInUser, $product);
+            $product->resolved_price = $resolved['price'];
+            $product->resolved_min_qty = $resolved['min_qty'];
+            $product->resolved_pack_multiple = $resolved['pack_multiple'];
+            $product->resolved_contract_id = $resolved['contract_id'];
+            // attach inventory eta
+            $inv = Inventory::where('product_id', $product->id)->first();
+            $product->inventory_eta = $inv?->eta_at;
+            return $product;
+        });
 
         // Get user's cart if authenticated
         $cart = null;
@@ -88,7 +105,17 @@ class HomepageController extends Controller
             ->where('is_active', true)
             ->orderBy('created_at', 'desc')
             ->take(3)
-            ->get();
+            ->get()
+            ->map(function ($product) use ($pricingResolver, $signedInUser) {
+                $resolved = $pricingResolver->resolveForUserAndProduct($signedInUser, $product);
+                $product->resolved_price = $resolved['price'];
+                $product->resolved_min_qty = $resolved['min_qty'];
+                $product->resolved_pack_multiple = $resolved['pack_multiple'];
+                $product->resolved_contract_id = $resolved['contract_id'];
+                $inv = Inventory::where('product_id', $product->id)->first();
+                $product->inventory_eta = $inv?->eta_at;
+                return $product;
+            });
 
         return Inertia::render('tenant/Homepage', [
             'categories' => $categories,

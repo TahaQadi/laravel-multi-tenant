@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Product;
+use App\Models\Inventory;
+use App\Services\PricingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -20,13 +22,30 @@ class ProductController extends Controller
         // Load product with related data
         $product->load(['category', 'images']);
 
+        // Resolve contract pricing for this product
+        $pricingResolver = new PricingResolver();
+        $resolved = $pricingResolver->resolveForUserAndProduct(Auth::user(), $product);
+        $product->resolved_price = $resolved['price'];
+        $product->resolved_min_qty = $resolved['min_qty'];
+        $product->resolved_pack_multiple = $resolved['pack_multiple'];
+        $product->resolved_contract_id = $resolved['contract_id'];
+        $inv = Inventory::where('product_id', $product->id)->first();
+        $product->inventory_eta = $inv?->eta_at;
+
         // Get related products from the same category
         $relatedProducts = Product::where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->where('is_active', true)
             ->with('images')
             ->limit(4)
-            ->get();
+            ->get()
+            ->map(function ($p) use ($pricingResolver) {
+                $resolved = $pricingResolver->resolveForUserAndProduct(Auth::user(), $p);
+                $p->resolved_price = $resolved['price'];
+                $inv = Inventory::where('product_id', $p->id)->first();
+                $p->inventory_eta = $inv?->eta_at;
+                return $p;
+            });
 
         // Get user's cart if authenticated
         $cart = null;

@@ -4,6 +4,8 @@ use App\Http\Controllers\Tenant\Manage\ProductController;
 use App\Http\Controllers\Tenant\Manage\CategoryController;
 use App\Http\Controllers\Tenant\Manage\CustomerController;
 use App\Http\Controllers\Tenant\Manage\OrderController;
+use App\Http\Controllers\Tenant\Manage\ContractController;
+use App\Http\Controllers\Tenant\Manage\ApprovalController;
 use App\Http\Controllers\Tenant\Manage\StoreStatsController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +49,21 @@ Route::middleware('auth')->group(function () {
         Route::group(['prefix' => 'customer'], function () {
             Route::get('/', [CustomerController::class, 'index'])->name('customer.index');
             Route::get('/{customer}', [CustomerController::class, 'show'])->name('customer.show');
+        });
+
+        // Contract Routes
+        Route::group(['prefix' => 'contract'], function () {
+            Route::get('/', [ContractController::class, 'index'])->name('manage.contract.index');
+            Route::get('/create', [ContractController::class, 'create'])->name('manage.contract.create');
+            Route::post('/', [ContractController::class, 'store'])->name('manage.contract.store');
+            Route::get('/{contract}', [ContractController::class, 'show'])->name('manage.contract.show');
+            Route::post('/{contract}/upload-items', [ContractController::class, 'uploadItems'])->name('manage.contract.upload-items');
+        });
+
+        // Approval Routes
+        Route::group(['prefix' => 'approvals'], function () {
+            Route::get('/', [ApprovalController::class, 'index'])->name('manage.approvals.index');
+            Route::post('/{approval}/decide', [ApprovalController::class, 'decide'])->name('manage.approvals.decide');
         });
     });
 });

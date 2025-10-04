@@ -7,6 +7,8 @@ use App\Http\Controllers\Tenant\HomepageController;
 use App\Http\Controllers\Tenant\OrderController;
 use App\Http\Controllers\Tenant\ProductController;
 use App\Http\Controllers\Tenant\Manage\TenantAssetController;
+use App\Http\Controllers\Tenant\StandingOrderController;
+use App\Http\Controllers\Tenant\DeliveryLocationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -47,11 +49,23 @@ Route::middleware([
     Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::get('/orders/confirmation/{order}', [OrderController::class, 'confirmation'])->name('orders.confirmation');
+    Route::post('/orders/{order}/split', [OrderController::class, 'split'])->name('orders.split');
 
 
     Route::get('tenant-asset/{path}', TenantAssetController::class)
         ->where('path', '.*')
         ->name('tenant.asset');
+
+    // Templates (auth required)
+    Route::middleware('auth')->group(function () {
+        \App\Http\Controllers\Tenant\OrderTemplateController::class;
+        Route::get('/templates', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'index'])->name('templates.index');
+        Route::post('/templates', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'store'])->name('templates.store');
+        Route::get('/templates/{template}', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'show'])->name('templates.show');
+        Route::post('/templates/{template}/items', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'addItem'])->name('templates.items.add');
+        Route::delete('/templates/{template}/items/{item}', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'removeItem'])->name('templates.items.remove');
+        Route::post('/templates/{template}/apply', [\App\Http\Controllers\Tenant\OrderTemplateController::class, 'applyToCart'])->name('templates.apply');
+    });
 
     // Include tenant-specific auth routes
     require __DIR__.'/tenant/auth.php';
@@ -65,5 +79,15 @@ Route::middleware([
             ]);
         })->name('dashboard');
         require __DIR__.'/tenant/admin.php';
+
+        // Standing orders
+        Route::get('/standing-orders', [StandingOrderController::class, 'index'])->name('standing-orders.index');
+        Route::post('/standing-orders', [StandingOrderController::class, 'store'])->name('standing-orders.store');
+        Route::post('/standing-orders/{standingOrder}/run', [StandingOrderController::class, 'run'])->name('standing-orders.run');
+
+        // Delivery locations
+        Route::get('/delivery-locations', [DeliveryLocationController::class, 'index'])->name('delivery-locations.index');
+        Route::post('/delivery-locations', [DeliveryLocationController::class, 'store'])->name('delivery-locations.store');
+        Route::delete('/delivery-locations/{location}', [DeliveryLocationController::class, 'destroy'])->name('delivery-locations.destroy');
     });
 });

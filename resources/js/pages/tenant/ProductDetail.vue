@@ -210,7 +210,10 @@ function formatCurrency(value) {
                         </div>
 
                         <div class="mt-6">
-                            <p class="text-3xl font-bold text-gray-900">${{ formatCurrency(product.price) }}</p>
+                            <p class="text-3xl font-bold text-gray-900">
+                                ${{ formatCurrency(product.resolved_price ?? product.price) }}
+                            </p>
+                            <p v-if="product.inventory_eta" class="text-sm text-gray-500 mt-1">ETA: {{ new Date(product.inventory_eta).toLocaleDateString() }}</p>
                         </div>
 
                         <div class="mt-4">
@@ -378,7 +381,7 @@ function formatCurrency(value) {
                                 <h3 class="font-medium text-lg hover:text-blue-600">{{ relatedProduct.name }}</h3>
                             </Link>
                             <div class="flex justify-between items-center mt-2">
-                                <span class="font-bold">${{ formatCurrency(relatedProduct.price) }}</span>
+                                <span class="font-bold">${{ formatCurrency(relatedProduct.resolved_price ?? relatedProduct.price) }}</span>
                                 <button
                                     @click="addRelatedToCart(relatedProduct.id)"
                                     class="bg-blue-600 text-white rounded-md p-1.5 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
